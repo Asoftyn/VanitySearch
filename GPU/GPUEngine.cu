@@ -128,49 +128,60 @@ std::string toHex(unsigned char *data, int length) {
 
 }
 
-int _ConvertSMVer2Cores(int major, int minor) {
-
-  // Defines for GPU Architecture types (using the SM version to determine
-  // the # of cores per SM
-  typedef struct {
-    int SM;  // 0xMm (hexidecimal notation), M = SM Major version,
-    // and m = SM minor version
-    int Cores;
-  } sSMtoCores;
-
-  sSMtoCores nGpuArchCoresPerSM[] = {
-      {0x20, 32}, // Fermi Generation (SM 2.0) GF100 class
-      {0x21, 48}, // Fermi Generation (SM 2.1) GF10x class
-      {0x30, 192},
-      {0x32, 192},
-      {0x35, 192},
-      {0x37, 192},
-      {0x50, 128},
-      {0x52, 128},
-      {0x53, 128},
-      {0x60,  64},
-      {0x61, 128},
-      {0x62, 128},
-      {0x70,  64},
-      {0x72,  64},
-      {0x75,  64},
-      {0x80,  64},
-      {0x86, 128},
-      {-1, -1} };
-
-  int index = 0;
-
-  while (nGpuArchCoresPerSM[index].SM != -1) {
-    if (nGpuArchCoresPerSM[index].SM == ((major << 4) + minor)) {
-      return nGpuArchCoresPerSM[index].Cores;
-    }
-
-    index++;
+inline int _ConvertSMVer2Cores(int major, int minor) {
+	// Defines for GPU Architecture types (using the SM version to determine
+	// the # of cores per SM
+	typedef struct {
+	  int SM;  // 0xMm (hexidecimal notation), M = SM Major version,
+	  // and m = SM minor version
+	  int Cores;
+	} sSMtoCores;
+  
+	sSMtoCores nGpuArchCoresPerSM[] = {
+		{0x30, 192},
+		{0x32, 192},
+		{0x35, 192},
+		{0x37, 192},
+		{0x50, 128},
+		{0x52, 128},
+		{0x53, 128},
+		{0x60,  64},
+		{0x61, 128},
+		{0x62, 128},
+		{0x70,  64},
+		{0x72,  64},
+		{0x75,  64},
+		{0x80,  64},
+		{0x86, 128},
+		{0x87, 128},
+		{0x89, 128},
+		{0x90, 128},
+		{0xa0, 128},
+		{0xa1, 128},
+		{0xa3, 128},
+		{0xb0, 128},
+		{0xc0, 128},
+		{0xc1, 128},
+		{-1, -1}};
+  
+	int index = 0;
+  
+	while (nGpuArchCoresPerSM[index].SM != -1) {
+	  if (nGpuArchCoresPerSM[index].SM == ((major << 4) + minor)) {
+		return nGpuArchCoresPerSM[index].Cores;
+	  }
+  
+	  index++;
+	}
+  
+	// If we don't find the values, we default use the previous one
+	// to run properly
+	printf(
+		"MapSMtoCores for SM %d.%d is undefined."
+		"  Default to use %d Cores/SM\n",
+		major, minor, nGpuArchCoresPerSM[index - 1].Cores);
+	return nGpuArchCoresPerSM[index - 1].Cores;
   }
-
-  return 0;
-
-}
 
 GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound,bool rekey) {
 
@@ -296,16 +307,6 @@ void GPUEngine::PrintCudaInfo() {
 
   cudaError_t err;
 
-  const char *sComputeMode[] =
-  {
-    "Multiple host threads",
-    "Only one host thread",
-    "No host thread",
-    "Multiple process threads",
-    "Unknown",
-     NULL
-  };
-
   int deviceCount = 0;
   cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
 
@@ -330,11 +331,10 @@ void GPUEngine::PrintCudaInfo() {
 
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, i);
-    printf("GPU #%d %s (%dx%d cores) (Cap %d.%d) (%.1f MB) (%s)\n",
+    printf("GPU #%d %s (%dx%d cores) (Cap %d.%d) (%.1f MB)\n",
       i,deviceProp.name,deviceProp.multiProcessorCount,
       _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor),
-      deviceProp.major, deviceProp.minor,(double)deviceProp.totalGlobalMem/1048576.0,
-      sComputeMode[deviceProp.computeMode]);
+      deviceProp.major, deviceProp.minor,(double)deviceProp.totalGlobalMem/1048576.0);
 
   }
 
